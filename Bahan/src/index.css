@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+
+/* Custom Scrollbar for the Sidebar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px; /* Makes it thin and sleek */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #0a0a0a; /* Matches your sidebar background */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #C05621; /* Your Branded Orange */
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #e66a2e; /* A slightly lighter orange on hover */
+}
