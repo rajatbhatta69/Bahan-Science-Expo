@@ -18,3 +18,16 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #e66a2e; /* A slightly lighter orange on hover */
 }
+
+/* Styling the Leaflet Popup to look professional */
+.leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  color: #0a0a0a !important;
+  border-radius: 12px !important;
+  padding: 0px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.leaflet-popup-tip {
+  background: #ffffff !important;
+}
