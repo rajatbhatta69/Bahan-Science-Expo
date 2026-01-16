@@ -1,4 +1,4 @@
-import { createContext, useState, useContext } from "react";
+import { createContext, useState, useEffect, useContext } from "react";
 
 const BusContext = createContext();
 
@@ -22,6 +22,24 @@ export const BusProvider = ({ children }) => {
       status: "Delayed",
     }
   ]);
+
+  // --- START OF MOCK DATA SECTION ---
+  // When you get real data, you will replace this useEffect with your API call
+  useEffect(() => {
+    const simulator = setInterval(() => {
+      setBuses((currentBuses) =>
+        currentBuses.map((bus) => ({
+          ...bus,
+          // Moves the bus by a small random amount (approx 5-10 meters)
+          lat: bus.lat + (Math.random() - 0.5) * 0.0004,
+          lng: bus.lng + (Math.random() - 0.5) * 0.0004,
+        }))
+      );
+    }, 3000); // 3-second heartbeat
+
+    return () => clearInterval(simulator);
+  }, []);
+  // --- END OF MOCK DATA SECTION ---
 
   const updateBusLocation = (id, newLat, newLng) => {
     setBuses((prevBuses) =>

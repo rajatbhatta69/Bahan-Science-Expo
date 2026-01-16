@@ -10,7 +10,7 @@ const Navbar = () => {
   }, []);
 
   return (
-    <nav className="h-20 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-zinc-800 flex items-center justify-between px-8 z-[1000]">
+    <nav className="h-20 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-zinc-800 flex items-center justify-between px-8 z-1000">
       {/* Left: Search Bar Mockup */}
       <div className="flex items-center w-1/3">
         <div className="relative w-full max-w-sm">

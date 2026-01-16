@@ -31,3 +31,13 @@
 .leaflet-popup-tip {
   background: #ffffff !important;
 }
+
+/* This forces the Leaflet Marker to slide instead of jump */
+.leaflet-marker-icon {
+  transition: transform 3000ms linear !important;
+}
+
+/* Ensure the custom inner container also stays smooth */
+.custom-marker-container {
+  transition: all 3000ms linear;
+}
