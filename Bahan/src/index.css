@@ -1,25 +1,21 @@
 @import "tailwindcss";
 
-
 /* Custom Scrollbar for the Sidebar */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 5px; /* Makes it thin and sleek */
+  width: 5px;
 }
-
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #0a0a0a; /* Matches your sidebar background */
+  background: #0a0a0a;
 }
-
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #C05621; /* Your Branded Orange */
+  background: #C05621;
   border-radius: 10px;
 }
-
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #e66a2e; /* A slightly lighter orange on hover */
+  background: #e66a2e;
 }
 
-/* Styling the Leaflet Popup to look professional */
+/* Styling the Leaflet Popup */
 .leaflet-popup-content-wrapper {
   background: #ffffff !important;
   color: #0a0a0a !important;
@@ -27,17 +23,47 @@
   padding: 0px !important;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
 }
-
 .leaflet-popup-tip {
   background: #ffffff !important;
 }
 
-/* This forces the Leaflet Marker to slide instead of jump */
+/* --- THE FIX STARTS HERE --- */
+
+/* 1. Reset all markers to have NO transition by default */
 .leaflet-marker-icon {
-  transition: transform 3000ms linear !important;
+  transition: none !important;
 }
 
-/* Ensure the custom inner container also stays smooth */
-.custom-marker-container {
-  transition: all 3000ms linear;
+.leaflet-zoom-anim .custom-bus-icon {
+    transition: none !important;
+}
+
+/* If the map is zooming, the bus marker must NOT transition */
+.is-zooming .custom-bus-icon {
+    transition: none !important;
+}
+
+/* Ensure the bus needle also doesn't fly around during zoom */
+.is-zooming .bus-arrow-needle {
+    transition: none !important;
+}
+
+/* 2. ONLY the Bus should have a smooth transition */
+/* We use 8000ms to match your 8-second simulation heartbeat */
+.custom-bus-icon {
+  transition: transform 8000ms linear !important;
+}
+
+/* 3. Explicitly kill any animation for User Pins */
+.no-transition {
+  transition: none !important;
+  animation: none !important;
+}
+
+.eta-label {
+    transition: all 8000ms linear; /* Matches your bus heartbeat */
+}
+
+.leaflet-interactive {
+    transition: stroke-dashoffset 0.5s ease-in-out, d 0.8s ease-in-out;
 }
