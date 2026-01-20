@@ -1,6 +1,54 @@
 @import "tailwindcss";
 
-/* Custom Scrollbar for the Sidebar */
+/* --- PERFORMANCE BOOSTERS --- */
+
+/* Force the GPU to handle bus markers to stop lag */
+.custom-bus-icon {
+    transition: transform 1000ms linear; /* Smooth rotation */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pulse-ring {
+    position: absolute;
+    width: 45px;
+    height: 45px;
+    border: 3px solid #10b981;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(0.5); opacity: 1; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* Force the GPU for the ETA label so it doesn't stutter */
+.custom-eta-pill {
+  transition: none !important; /* This stops the 'sliding' effect */
+    animation: none !important;
+}
+
+.custom-eta-pill > div {
+    transition: none !important;
+}
+
+.is-zooming .custom-eta-pill {
+    display: none !important;
+}
+
+/* Kill transitions during zooming to prevent "ghost" buses flying across the screen */
+.leaflet-zoom-anim .custom-bus-icon,
+.is-zooming .custom-bus-icon,
+.is-zooming .bus-arrow-needle,
+.is-zooming .custom-eta-pill {
+  transition: none !important;
+  visibility: hidden; /* Temporarily hide buses during zoom for a cleaner look */
+}
+
+/* --- SCROLLBAR & UI --- */
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 5px;
 }
@@ -15,7 +63,8 @@
   background: #e66a2e;
 }
 
-/* Styling the Leaflet Popup */
+/* --- LEAFLET CLEANUP --- */
+
 .leaflet-popup-content-wrapper {
   background: #ffffff !important;
   color: #0a0a0a !important;
@@ -23,47 +72,13 @@
   padding: 0px !important;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
 }
-.leaflet-popup-tip {
-  background: #ffffff !important;
-}
 
-/* --- THE FIX STARTS HERE --- */
-
-/* 1. Reset all markers to have NO transition by default */
-.leaflet-marker-icon {
-  transition: none !important;
-}
-
-.leaflet-zoom-anim .custom-bus-icon {
-    transition: none !important;
-}
-
-/* If the map is zooming, the bus marker must NOT transition */
-.is-zooming .custom-bus-icon {
-    transition: none !important;
-}
-
-/* Ensure the bus needle also doesn't fly around during zoom */
-.is-zooming .bus-arrow-needle {
-    transition: none !important;
-}
-
-/* 2. ONLY the Bus should have a smooth transition */
-/* We use 8000ms to match your 8-second simulation heartbeat */
-.custom-bus-icon {
-  transition: transform 8000ms linear !important;
-}
-
-/* 3. Explicitly kill any animation for User Pins */
 .no-transition {
   transition: none !important;
   animation: none !important;
 }
 
-.eta-label {
-    transition: all 8000ms linear; /* Matches your bus heartbeat */
-}
-
+/* Make the road paths look "glowy" and modern */
 .leaflet-interactive {
-    transition: stroke-dashoffset 0.5s ease-in-out, d 0.8s ease-in-out;
+  filter: drop-shadow(0 0 2px rgba(59, 130, 246, 0.5));
 }
