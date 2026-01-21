@@ -7,17 +7,17 @@ const BusContext = createContext();
 
 // --- 1. LOGIC HANDLERS ---
 const getPathDistance = (busIdx, userIdx, totalPoints, direction, isCircular) => {
-    if (userIdx === -1) return Infinity; // Safety check
-    
-    if (isCircular) {
-        return direction === 1 
-            ? (userIdx - busIdx + totalPoints) % totalPoints
-            : (busIdx - userIdx + totalPoints) % totalPoints;
-    } else {
-        // Linear logic (Ratnapark routes)
-        if (direction === 1) return userIdx >= busIdx ? userIdx - busIdx : Infinity;
-        return busIdx >= userIdx ? busIdx - userIdx : Infinity;
-    }
+  if (userIdx === -1) return Infinity; // Safety check
+
+  if (isCircular) {
+    return direction === 1
+      ? (userIdx - busIdx + totalPoints) % totalPoints
+      : (busIdx - userIdx + totalPoints) % totalPoints;
+  } else {
+    // Linear logic (Ratnapark routes)
+    if (direction === 1) return userIdx >= busIdx ? userIdx - busIdx : Infinity;
+    return busIdx >= userIdx ? busIdx - userIdx : Infinity;
+  }
 };
 
 export const BusProvider = ({ children }) => {
@@ -27,23 +27,29 @@ export const BusProvider = ({ children }) => {
   const [selectedBus, setSelectedBus] = useState(null);
   const [showBuses, setShowBuses] = useState(false);
   const [activeDirection, setActiveDirection] = useState(1);
+  const [isManuallyDismissed, setIsManuallyDismissed] = useState(false); // <--- ADD THIS
 
   // Initial fleet generation
   const [buses, setBuses] = useState(() => {
     const fleet = [];
-    ROUTES.forEach(route => {
-      const count = route.id === 'R1' ? 12 : 4;
+    ROUTES.forEach(route => { //Run a loop for each route in transport.js
+      const count = route.id === 'R1' ? 12 : 4; //Check if the route is Ring Road(R1), if yes: create 12 buses for that route, else create 4 buses for that route
       for (let i = 0; i < count; i++) {
         fleet.push({
-          id: `${route.id}-B${i}`,
+          id: `${route.id}-B${i}`, //Unique string so that react can track each bus
+          name: route.id === 'R1' ? "Sajha Yatayat" : "City Express",
+          numberPlate: `BA ${Math.floor(Math.random() * 9) + 1} PA ${Math.floor(1000 + Math.random() * 8999)}`, //Generate a random number plate for each bus
           routeId: route.id,
-          startProgress: i / count,
-          direction: i % 2 === 0 ? 1 : -1,
+          startProgress: i / count, //To make sure that all the buses doesnt spawn in the same point, and distribute them all over the route
+          direction: i % 2 === 0 ? 1 : -1, //Even numbered buses get assigned to clockwise route and others in anticlockwise, to create two-way traffic flow immediately
           pathIndex: 0,
           detailedPath: [],
-          lat: 27.7172,
-          lng: 85.3240,
+          lat: 27.7172, lng: 85.3240, //Initial coordinates of the bus
           heading: 0,
+          // New Expo Metadata:
+          totalSeats: 40,
+          availableSeats: Math.floor(Math.random() * 25), // Randomly assign a number of free seats in the bus
+          delayMin: Math.floor(Math.random() * 8) - 2, // -2 to 6 minutes (negative means early)
         });
       }
     });
@@ -52,7 +58,7 @@ export const BusProvider = ({ children }) => {
 
   // --- 3. EFFECTS ---
 
-  // Update activeDirection automatically
+  // 1. Update activeDirection automatically
   useEffect(() => {
     if (userStart && userEnd) {
       const route = ROUTES.find(r => r.stations.includes(userStart.id) && r.stations.includes(userEnd.id));
@@ -67,7 +73,7 @@ export const BusProvider = ({ children }) => {
     }
   }, [userStart, userEnd]);
 
-  // Fetch OSRM Geometries on mount
+  // 2. Fetch OSRM Geometries on mount
   useEffect(() => {
     const fetchGeometries = async () => {
       const routeGeometries = {};
@@ -100,69 +106,73 @@ export const BusProvider = ({ children }) => {
     fetchGeometries();
   }, []);
 
-  // Simulation Heartbeat
+  // 3. RESTORED: Simulation Heartbeat (The "Motor")
   useEffect(() => {
     const simulator = setInterval(() => {
       setBuses(current => current.map(bus => moveBus(bus, ROUTES)));
     }, 2000);
     return () => clearInterval(simulator);
-  }, []);
+  }, []); // Empty dependency array keeps it running once on mount
 
-  // --- DYNAMIC SELECTION ENGINE ---
+  // 4. DYNAMIC SELECTION ENGINE
   useEffect(() => {
+    // 1. If search is cleared, reset everything including the manual dismiss flag
     if (!showBuses || !userStart || !userEnd) {
-      if (selectedBus) setSelectedBus(null);
+      setSelectedBus(null);
+      setIsManuallyDismissed(false);
+      return;
+    }
+
+    // 2. CRITICAL: If the user manually closed the card, STOP EVERYTHING.
+    // Do not look for candidates, do not calculate distances. Just exit.
+    if (isManuallyDismissed) {
       return;
     }
 
     const route = ROUTES.find(r => r.stations.includes(userStart.id) && r.stations.includes(userEnd.id));
     if (!route) return;
 
-    // Fixes "Green Bus" bias by resolving station coordinates correctly for math
-    const stationCoords = activeDirection === 1
-      ? (userStart.cw || userStart)
-      : (userStart.acw || userStart);
+    const stationCoords = activeDirection === 1 ? (userStart.cw || userStart) : (userStart.acw || userStart);
 
     const candidates = buses
       .filter(bus => bus.routeId === route.id && bus.direction === activeDirection)
       .map(bus => {
-        if (!bus.detailedPath || !bus.detailedPath.length) return { ...bus, pathDist: Infinity };
-
+        if (!bus.detailedPath || bus.detailedPath.length === 0) {
+          return { ...bus, pathDist: Infinity, userPathIdx: -1 };
+        }
         let userPathIdx = -1;
         let minD = Infinity;
-
-        // Find the point on the road closest to the station
         bus.detailedPath.forEach((pt, i) => {
           const d = Math.pow(pt[0] - stationCoords.lat, 2) + Math.pow(pt[1] - stationCoords.lng, 2);
           if (d < minD) { minD = d; userPathIdx = i; }
         });
 
-        const pathDist = getPathDistance(
-          bus.pathIndex,
-          userPathIdx,
-          bus.detailedPath.length,
-          bus.direction,
-          route.isCircular
-        );
-
-        return { ...bus, pathDist, userPathIdx };
+        const pathDist = getPathDistance(bus.pathIndex, userPathIdx, bus.detailedPath.length, bus.direction, route.isCircular);
+        return {
+          ...bus,
+          pathDist: isNaN(pathDist) ? Infinity : pathDist,
+          userPathIdx
+        };
       })
-      // Filter: Distance must be > 2 (not passed yet) and < 60% of route (no weird lines)
-      .filter(bus => bus.pathDist > 2 && bus.pathDist < (bus.detailedPath.length * 0.6))
+      // Ensure pathDist is positive (bus is behind the user) 
+      // and the bus isn't too far away (within 60% of route length)
+      .filter(bus => bus.pathDist > 0 && bus.pathDist < (bus.detailedPath.length * 0.6))
       .sort((a, b) => a.pathDist - b.pathDist);
 
-    if (candidates.length > 0) {
-      const bestBus = candidates[0];
-      // We store the whole bestBus object because it contains the 'pathDist'
-      setSelectedBus({ ...bestBus });
-    } else {
-      setSelectedBus(null);
+    // 3. Only auto-select a bus if the user hasn't selected one yet 
+    // AND they haven't manually dismissed the view.
+    if (candidates.length > 0 && !selectedBus && !isManuallyDismissed) {
+      setSelectedBus({ ...candidates[0] });
     }
-  }, [buses, userStart, userEnd, activeDirection, showBuses]);
+  }, [buses, userStart, userEnd, activeDirection, showBuses, isManuallyDismissed, selectedBus]);
+  // Added selectedBus to dependencies to ensure it tracks the null state accurately
+
 
   // --- 4. ACTIONS ---
   const findAndSelectNearestBus = () => {
     if (!userStart || !userEnd) return;
+    setIsManuallyDismissed(false); // Reset dismissal on new search
+    setSelectedBus(null);
     setShowBuses(true);
   };
 
@@ -173,7 +183,7 @@ export const BusProvider = ({ children }) => {
     if (!selectedBus) return null;
     const busInFleet = buses.find(b => b.id === selectedBus.id);
     if (!busInFleet) return null;
-    
+
     return {
       ...busInFleet,
       pathDist: selectedBus.pathDist,
@@ -183,18 +193,19 @@ export const BusProvider = ({ children }) => {
 
   return (
     <BusContext.Provider value={{
-      buses, 
-      selectedBus: liveSelectedBus, 
-      setSelectedBus, 
-      userStart, 
+      buses,
+      selectedBus: liveSelectedBus,
+      setSelectedBus,
+      userStart,
       setUserStart,
-      userEnd, 
-      setUserEnd, 
-      showBuses, 
-      setShowBuses, 
+      userEnd,
+      setUserEnd,
+      showBuses,
+      setShowBuses,
       activeDirection,
-      findAndSelectNearestBus, 
-      STATIONS, 
+      findAndSelectNearestBus,
+      setIsManuallyDismissed,
+      STATIONS,
       ROUTES
     }}>
       {children}
