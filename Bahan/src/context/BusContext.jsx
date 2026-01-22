@@ -31,31 +31,33 @@ export const BusProvider = ({ children }) => {
   const [activeDirection, setActiveDirection] = useState(1);
   const [isManuallyDismissed, setIsManuallyDismissed] = useState(false); // <--- ADD THIS
 
-  const [buses, setBuses] = useState(() => {
-    const fleet = [];
-    ROUTES.forEach(route => { //Run a loop for each route in transport.js
-      const count = route.id === 'R1' ? 12 : 4; //Check if the route is Ring Road(R1), if yes: create 12 buses for that route, else create 4 buses for that route
-      for (let i = 0; i < count; i++) {
-        fleet.push({
-          id: `${route.id}-B${i}`, //Unique string so that react can track each bus
-          name: route.id === 'R1' ? "Sajha Yatayat" : "City Express",
-          numberPlate: `BA ${Math.floor(Math.random() * 9) + 1} PA ${Math.floor(1000 + Math.random() * 8999)}`, //Generate a random number plate for each bus
-          routeId: route.id,
-          startProgress: i / count, //To make sure that all the buses doesnt spawn in the same point, and distribute them all over the route
-          direction: i % 2 === 0 ? 1 : -1, //Even numbered buses get assigned to clockwise route and others in anticlockwise, to create two-way traffic flow immediately
-          pathIndex: 0,
-          detailedPath: [],
-          lat: 27.7172, lng: 85.3240, //Initial coordinates of the bus
-          heading: 0,
-          // New Expo Metadata:
-          totalSeats: 40,
-          availableSeats: Math.floor(Math.random() * 25), // Randomly assign a number of free seats in the bus
-          delayMin: Math.floor(Math.random() * 8) - 2, // -2 to 6 minutes (negative means early)
-        });
-      }
-    });
-    return fleet;
+const [buses, setBuses] = useState(() => {
+  const fleet = [];
+  ROUTES.forEach(route => {
+    const count = route.id === 'R1' ? 12 : 4; 
+    
+    for (let i = 0; i < count; i++) {
+      fleet.push({
+        id: `${route.id}-B${i}`,
+        // UPDATE THIS LINE:
+        name: route.name, 
+        
+        numberPlate: `BA ${Math.floor(Math.random() * 9) + 1} PA ${Math.floor(1000 + Math.random() * 8999)}`,
+        routeId: route.id,
+        startProgress: i / count,
+        direction: i % 2 === 0 ? 1 : -1,
+        pathIndex: 0,
+        detailedPath: [],
+        lat: 27.7172, lng: 85.3240,
+        heading: 0,
+        totalSeats: 40,
+        availableSeats: Math.floor(Math.random() * 25),
+        delayMin: Math.floor(Math.random() * 8) - 2,
+      });
+    }
   });
+  return fleet;
+});
 
 
   useEffect(() => {
