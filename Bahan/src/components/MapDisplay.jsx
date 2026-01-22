@@ -179,18 +179,29 @@ const MapDisplay = () => {
 
     // 3. Keep filteredBuses but use the context's direction
     const filteredBuses = useMemo(() => {
-        if (!showBuses || !userStart || !userEnd) return [];
+        // 1. Always find the live buses
+        const liveBuses = buses.filter(bus => bus.isLive);
 
-        return buses.filter(bus => {
+        // 2. If the user hasn't searched yet, ONLY show live buses
+        if (!showBuses || !userStart || !userEnd) {
+            return liveBuses;
+        }
+
+        // 3. If the user HAS searched, show live buses + the mock buses for that route
+        const routeBuses = buses.filter(bus => {
             const route = ROUTES.find(r => r.id === bus.routeId);
             const isOnRoute = route?.stations.includes(userStart.id) &&
                 route?.stations.includes(userEnd.id);
 
-            // Now comparing against the "Single Source of Truth" direction
+            // Match direction for mock buses
             return isOnRoute && bus.direction === activeDirection;
         });
-    }, [buses, userStart, userEnd, ROUTES, showBuses, activeDirection]);
 
+        // 4. Merge them (using a Set to ensure no duplicates if a live bus is also on the route)
+        const combined = [...new Map([...routeBuses, ...liveBuses].map(b => [b.id, b])).values()];
+
+        return combined;
+    }, [buses, userStart, userEnd, ROUTES, showBuses, activeDirection]);
     // ... rest of your component logic
 
     return (
@@ -228,36 +239,62 @@ const MapDisplay = () => {
                             }}
                             icon={L.divIcon({
                                 html: `
-                    <div class="custom-bus-icon ${isSelected ? 'selected' : ''}" 
-                         style="transform: rotate(${bus.heading}deg);">
-                        <div style="
-                            width: ${isSelected ? '32px' : '26px'}; 
-                            height: ${isSelected ? '32px' : '26px'}; 
-                            background: ${isSelected ? '#10b981' : (bus.direction === 1 ? '#C05621' : '#f97316')}; 
-                            border-radius: 8px; 
-                            border: 2px solid white; 
-                            display: flex; 
-                            align-items: center; 
-                            justify-content: center;
-                            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                            position: relative;
-                        ">
-                            <div style="
-                                position: absolute;
-                                top: -6px;
-                                width: 0; 
-                                height: 0; 
-                                border-left: 6px solid transparent;
-                                border-right: 6px solid transparent;
-                                border-bottom: 8px solid ${isSelected ? '#10b981' : 'white'};
-                            "></div>
-                            
-                            <span style="color: white; font-size: 10px; font-weight: 800;">🚌</span>
-                        </div>
-                        
-                        ${isSelected ? '<div class="pulse-ring"></div>' : ''}
+        <div class="custom-bus-icon ${isSelected ? 'selected' : ''} ${bus.isLive ? 'is-live' : ''}" 
+             style="transform: rotate(${bus.heading}deg);">
+            <div style="
+                width: ${isSelected || bus.isLive ? '32px' : '26px'}; 
+                height: ${isSelected || bus.isLive ? '32px' : '26px'}; 
+                /* Live bus gets a bright Red, Selected gets Green, others get Orange */
+                background: ${bus.isLive ? '#ef4444' : (isSelected ? '#10b981' : (bus.direction === 1 ? '#C05621' : '#f97316'))}; 
+                border-radius: 8px; 
+                border: 2px solid white; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                position: relative;
+                transition: all 0.3s ease;
+            ">
+                <div style="
+                    position: absolute;
+                    top: -6px;
+                    width: 0; 
+                    height: 0; 
+                    border-left: 6px solid transparent;
+                    border-right: 6px solid transparent;
+                    border-bottom: 8px solid ${bus.isLive ? '#ef4444' : (isSelected ? '#10b981' : 'white')};
+                "></div>
+                
+                <span style="color: white; font-size: ${bus.isLive ? '12px' : '10px'}; font-weight: 800;">
+                    ${bus.isLive ? '⚡' : '🚌'}
+                </span>
+
+                ${bus.isLive ? `
+                    <div style="
+                        position: absolute;
+                        top: -4px;
+                        right: -4px;
+                        width: 10px;
+                        height: 10px;
+                        background: #ef4444;
+                        border-radius: 50%;
+                        border: 2px solid white;
+                    ">
+                        <div class="animate-ping" style="
+                            position: absolute;
+                            width: 100%;
+                            height: 100%;
+                            background: #ef4444;
+                            border-radius: 50%;
+                            opacity: 0.75;
+                        "></div>
                     </div>
-                `,
+                ` : ''}
+            </div>
+            
+            ${isSelected ? '<div class="pulse-ring"></div>' : ''}
+        </div>
+    `,
                                 className: 'no-transition',
                                 iconSize: [40, 40],
                                 iconAnchor: [20, 20]

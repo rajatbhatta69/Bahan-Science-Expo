@@ -328,6 +328,10 @@ const Sidebar = () => {
         <p className="text-[11px] font-bold bg-gradient-to-r from-zinc-400 to-zinc-600 bg-clip-text text-transparent text-center uppercase tracking-tight">
           सवारीको जानकारी हर पल हातमा
         </p>
+
+        <a href="/driver" target="_blank" className="text-[9px] text-zinc-700 hover:text-zinc-400 transition-colors uppercase font-bold">
+          Admin: Driver Portal
+        </a>
       </div>
     </div>
   );

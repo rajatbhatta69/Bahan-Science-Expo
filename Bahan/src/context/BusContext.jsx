@@ -2,6 +2,8 @@ import React, { createContext, useState, useEffect, useContext, useMemo } from "
 import { STATIONS, ROUTES } from "../data/transportData";
 import { calculateDistance, getBearing } from "../utils/geoUtils";
 import { moveBus } from "../services/simulationEngine"; // Cleaned up logic
+import { db } from '../firebase';
+import { ref, onValue } from "firebase/database";
 
 const BusContext = createContext();
 
@@ -29,7 +31,6 @@ export const BusProvider = ({ children }) => {
   const [activeDirection, setActiveDirection] = useState(1);
   const [isManuallyDismissed, setIsManuallyDismissed] = useState(false); // <--- ADD THIS
 
-  // Initial fleet generation
   const [buses, setBuses] = useState(() => {
     const fleet = [];
     ROUTES.forEach(route => { //Run a loop for each route in transport.js
@@ -55,6 +56,47 @@ export const BusProvider = ({ children }) => {
     });
     return fleet;
   });
+
+
+  useEffect(() => {
+    // 1. Reference the ENTIRE 'live_buses' folder, not just 'bus_1'
+    const allLiveBusesRef = ref(db, 'live_buses');
+
+    const unsubscribe = onValue(allLiveBusesRef, (snapshot) => {
+      const allData = snapshot.val(); // This is now an object: { "R1-B0": {...}, "R1-B1": {...} }
+
+      setBuses(prevBuses => prevBuses.map(bus => {
+        // 2. Check if THIS specific bus has data in Firebase
+        const liveData = allData ? allData[bus.id] : null;
+
+        if (liveData && liveData.active) {
+          // 3. Calculate heading only if it moved
+          const newHeading = (liveData.lat !== bus.lat || liveData.lng !== bus.lng)
+            ? getBearing(bus.lat, bus.lng, liveData.lat, liveData.lng)
+            : bus.heading;
+
+          return {
+            ...bus,
+            lat: liveData.lat,
+            lng: liveData.lng,
+            heading: newHeading,
+            isLive: true,
+            // We keep the current search direction so it stays visible on the map
+            direction: activeDirection
+          };
+        }
+
+        // 4. If the bus is NOT in Firebase (driver stopped), 
+        // it reverts to being a normal mock bus.
+        return { ...bus, isLive: false };
+      }));
+    });
+
+    return () => unsubscribe();
+  }, [activeDirection]); // Add activeDirection here so the bus updates when user switches views
+
+  // Initial fleet generation
+
 
   // --- 3. EFFECTS ---
 
@@ -109,7 +151,11 @@ export const BusProvider = ({ children }) => {
   // 3. RESTORED: Simulation Heartbeat (The "Motor")
   useEffect(() => {
     const simulator = setInterval(() => {
-      setBuses(current => current.map(bus => moveBus(bus, ROUTES)));
+      setBuses(current => current.map(bus => {
+        // If the bus is live, do NOT let the simulation engine move it
+        if (bus.isLive) return bus;
+        return moveBus(bus, ROUTES);
+      }));
     }, 2000);
     return () => clearInterval(simulator);
   }, []); // Empty dependency array keeps it running once on mount
