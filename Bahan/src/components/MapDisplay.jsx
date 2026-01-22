@@ -179,26 +179,30 @@ const MapDisplay = () => {
 
     // 3. Keep filteredBuses but use the context's direction
     const filteredBuses = useMemo(() => {
-        // 1. Always find the live buses
+        // 1. GLOBAL LIVE LAYER: Always find and show live buses.
+        // These move freely and don't care about the search or the direction.
         const liveBuses = buses.filter(bus => bus.isLive);
 
-        // 2. If the user hasn't searched yet, ONLY show live buses
-        if (!showBuses || !userStart || !userEnd) {
-            return liveBuses;
+        // 2. SEARCH LAYER: Only look for mock buses if a search is active.
+        let routeMockBuses = [];
+
+        if (showBuses && userStart && userEnd) {
+            routeMockBuses = buses.filter(bus => {
+                // Only consider mock buses here (don't duplicate the live ones)
+                if (bus.isLive) return false;
+
+                const route = ROUTES.find(r => r.id === bus.routeId);
+                const isOnRoute = route?.stations.includes(userStart.id) &&
+                    route?.stations.includes(userEnd.id);
+
+                // Mock buses must follow the direction of the search
+                return isOnRoute && bus.direction === activeDirection;
+            });
         }
 
-        // 3. If the user HAS searched, show live buses + the mock buses for that route
-        const routeBuses = buses.filter(bus => {
-            const route = ROUTES.find(r => r.id === bus.routeId);
-            const isOnRoute = route?.stations.includes(userStart.id) &&
-                route?.stations.includes(userEnd.id);
-
-            // Match direction for mock buses
-            return isOnRoute && bus.direction === activeDirection;
-        });
-
-        // 4. Merge them (using a Set to ensure no duplicates if a live bus is also on the route)
-        const combined = [...new Map([...routeBuses, ...liveBuses].map(b => [b.id, b])).values()];
+        // 3. COMBINE: Always return all live buses + any relevant mock buses
+        // We use a Map to merge them by ID just in case a live bus shares a mock ID
+        const combined = [...new Map([...routeMockBuses, ...liveBuses].map(b => [b.id, b])).values()];
 
         return combined;
     }, [buses, userStart, userEnd, ROUTES, showBuses, activeDirection]);

@@ -24,15 +24,37 @@ export const STATIONS = [
   { id: 'balkhu', name: 'Balkhu', cw: { lat: 27.684248, lng: 85.301314 }, acw: { lat: 27.684381, lng: 85.302051 } },
 
   // --- CORE CITY STATIONS ---
-  { id: 'ratnapark', name: 'Ratnapark', cw: { lat: 27.7061, lng: 85.3148 }, acw: { lat: 27.7061, lng: 85.3148 } },
-  { id: 'raniban', name: 'Raniban', cw: { lat: 27.7180, lng: 85.2850 }, acw: { lat: 27.7180, lng: 85.2850 } },
-  { id: 'dillibazar', name: 'Dillibazar', cw: { lat: 27.7045, lng: 85.3288 }, acw: { lat: 27.7045, lng: 85.3288 } }
+  //Here cw is coming towards station and acw is moving away from station to reach final destination
+
+  //From raniban to rnac-cw, from rnac to raniban-acw
+  // --- BALAJU-RANIBAN-CITY LINE STATIONS ---
+  { id: 'raniban', name: 'Raniban', cw: { lat: 27.730132, lng: 85.287483 }, acw: { lat: 27.730085, lng: 85.287453 } },
+  { id: 'nayabazar', name: 'Nayabazar', cw: { lat: 27.725193, lng: 85.305748 }, acw: { lat: 27.724979, lng: 85.305634 } },
+  { id: 'sorhakhutte', name: 'Sorhakhutte', cw: { lat: 27.719656, lng: 85.309413 }, acw: { lat: 27.719512, lng: 85.309368 } },
+  { id: 'thamel', name: 'Thamel', cw: { lat: 27.718214, lng: 85.312036 }, acw: { lat: 27.718143, lng: 85.311736 } },
+  { id: 'lainchaur', name: 'Lainchaur', cw: { lat: 27.717339, lng: 85.314983 }, acw: { lat: 27.717154, lng: 85.314949 } },
+  { id: 'jamal', name: 'Jamal', cw: { lat: 27.709164, lng: 85.316273 }, acw: { lat: 27.709164, lng: 85.316273 } },
+  { id: 'ratnapark', name: 'Ratnapark', cw: { lat: 27.706458, lng: 85.316478 }, acw: { lat: 27.706458, lng: 85.316478 } },
+  { id: 'bhadrakali', name: 'Bhadrakali Mandir', cw: { lat: 27.699491, lng: 85.316465 }, acw: { lat: 27.699491, lng: 85.316465 } },
+  { id: 'nac', name: 'NAC Bus Stop', cw: { lat: 27.702464, lng: 85.313506 }, acw: { lat: 27.702464, lng: 85.313506 } },
+
+  //From Balkumari to Gopikrishna Stop-cw, from Gopikrishna to Balkumari-acw
+  { id: 'parliament', name: 'Central Parliament', cw: { lat: 27.687923, lng: 85.336286 }, acw: { lat: 27.688298, lng: 85.336270 } },
+  { id: 'baneshwor', name: 'Naya Baneshwor', cw: { lat: 27.690330, lng: 85.335755 }, acw: { lat: 27.690426, lng: 85.335764 } },
+  { id: 'thapagaun', name: 'Thapagaun', cw: { lat: 27.691458, lng: 85.332585 }, acw: { lat: 27.691520, lng: 85.332659 } },
+  { id: 'hanumanthan', name: 'Hanumanthan', cw: { lat: 27.693118, lng: 85.327594 }, acw: { lat: 27.693137, lng: 85.327739 } },
+  { id: 'anamnagar', name: 'Anamnagar Bus Stop', cw: { lat: 27.699392, lng: 85.328614 }, acw: { lat: 27.699467, lng: 85.328690 } },
+  { id: 'new-plaza', name: 'New Plaza', cw: { lat: 27.700670, lng: 85.323556 }, acw: { lat: 27.700716, lng: 85.323689 } },
+  { id: 'dillibazar', name: 'Dillibazar', cw: { lat: 27.705782, lng: 85.322860 }, acw: { lat: 27.705784, lng: 85.322962 } },
+  { id: 'narayan-gopal', name: 'Narayan Gopal Chowk', cw: { lat: 27.739940, lng: 85.336989 }, acw: { lat: 27.739742, lng: 85.337050 } },
+  { id: 'gopi-krishna', name: 'Gopi Krishna Stop', cw: { lat: 27.722773, lng: 85.345382 }, acw: { lat: 27.722685, lng: 85.345028 } }
+
 ];
 
 export const ROUTES = [
   {
     id: 'R1',
-    name: 'Ring Road Express',
+    name: 'Mahanagar Yata',
     stations: [
       'kalanki', 'bafal', 'sitapaila', 'swyambhu', 'thulo-bharyang',
       'sano-bharyang', 'dhungedhara', 'banasthali', 'balaju',
@@ -45,16 +67,25 @@ export const ROUTES = [
   },
   {
     id: 'R2',
-    name: 'Balaju-Raniban Yatayat',
-    stations: ['raniban', 'dhungedhara', 'banasthali', 'balaju', 'ratnapark'],
+    name: 'Balaju Yatayat Yatayat',
+    stations: [
+      'raniban', 'dhungedhara', 'banasthali', 'balaju', 'nayabazar', 'sorhakhutte', 'thamel', 'lainchaur',
+      'jamal', 'ratnapark', 'bhadrakali', 'nac', // The One-Way Loop
+      'lainchaur', 'thamel', 'sorhakhutte', 'nayabazar', 'balaju', 'banasthali', 'dhungedhara', 'raniban' // Heading Back
+    ],
     isCircular: false,
     color: '#10b981'
   },
   {
     id: 'R3',
-    name: 'Ratnapark-Dillibazar Yatayat',
-    stations: ['ratnapark', 'dillibazar'],
+    name: 'Nepal Yatayat',
+    stations: [
+      'balkumari', 'koteshwor', 'parliament', 'baneshwor', 'thapagaun', 'hanumanthan', 
+      'anamnagar', 'new-plaza', 'dillibazar', 'narayan-gopal', 'gopi-krishna'
+    ],
     isCircular: false,
     color: '#3b82f6'
   }
+
+
 ];
