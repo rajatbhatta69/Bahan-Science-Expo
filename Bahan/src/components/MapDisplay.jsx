@@ -83,8 +83,14 @@ const MapController = ({ isLocked, routePath, activeDirection }) => {
 
 // --- Inside MapDisplay.jsx ---
 
-const LiveETALine = ({ bus, userStart, activeDirection }) => {
+const LiveETALine = ({ bus, userStart, activeDirection, journey }) => {
+    const { ROUTES, userEnd } = useBuses();
+
     const tetherPath = useMemo(() => {
+
+        // ONLY show tether for the first leg of a transfer
+        if (journey?.type === 'TRANSFER' && bus.routeId !== journey.firstRouteId) return null;
+
         if (!bus?.detailedPath || bus.userPathIdx === undefined) return null;
 
         const { detailedPath, pathIndex, userPathIdx, direction } = bus;
@@ -160,7 +166,6 @@ const StreetRoute = ({ start, end, isActive, onPathTrace }) => {
 // --- MAIN DISPLAY ---
 
 const MapDisplay = () => {
-    // 1. Destructure activeDirection from Context
     const {
         buses,
         userStart,
@@ -168,45 +173,54 @@ const MapDisplay = () => {
         selectedBus,
         showBuses,
         ROUTES,
-        activeDirection
+        STATIONS,
+        activeDirection,
+        findOptimalPath // Extracted from context
     } = useBuses();
 
     const [isLocked, setIsLocked] = useState(true);
     const [currentPathPoints, setCurrentPathPoints] = useState([]);
     const userPosition = useGeolocation();
 
+    // ADD THIS HERE: One calculation to rule them all
+    const journey = useMemo(() => {
+        // Remove !showBuses so it works during station selection too
+        if (!userStart || !userEnd || typeof findOptimalPath !== 'function') return null;
+
+        try {
+            const path = findOptimalPath(userStart.id, userEnd.id, ROUTES);
+            console.log("📍 Map Calculated Journey:", path); // CHECK YOUR BROWSER CONSOLE FOR THIS
+            return path;
+        } catch (err) {
+            console.error("Routing Error:", err);
+            return null;
+        }
+    }, [userStart?.id, userEnd?.id, ROUTES, findOptimalPath]);
+
     // 2. DELETE the activeDirection useMemo that was here. It's no longer needed!
 
     // 3. Keep filteredBuses but use the context's direction
     const filteredBuses = useMemo(() => {
-        // 1. GLOBAL LIVE LAYER: Always find and show live buses.
-        // These move freely and don't care about the search or the direction.
         const liveBuses = buses.filter(bus => bus.isLive);
-
-        // 2. SEARCH LAYER: Only look for mock buses if a search is active.
         let routeMockBuses = [];
 
         if (showBuses && userStart && userEnd) {
             routeMockBuses = buses.filter(bus => {
-                // Only consider mock buses here (don't duplicate the live ones)
                 if (bus.isLive) return false;
-
                 const route = ROUTES.find(r => r.id === bus.routeId);
+
+                if (journey?.type === 'TRANSFER') {
+                    return route?.id === journey.firstRouteId || route?.id === journey.secondRouteId;
+                }
+
                 const isOnRoute = route?.stations.includes(userStart.id) &&
                     route?.stations.includes(userEnd.id);
-
-                // Mock buses must follow the direction of the search
                 return isOnRoute && bus.direction === activeDirection;
             });
         }
 
-        // 3. COMBINE: Always return all live buses + any relevant mock buses
-        // We use a Map to merge them by ID just in case a live bus shares a mock ID
-        const combined = [...new Map([...routeMockBuses, ...liveBuses].map(b => [b.id, b])).values()];
-
-        return combined;
-    }, [buses, userStart, userEnd, ROUTES, showBuses, activeDirection]);
-    // ... rest of your component logic
+        return [...new Map([...routeMockBuses, ...liveBuses].map(b => [b.id, b])).values()];
+    }, [buses, userStart, userEnd, ROUTES, showBuses, activeDirection, journey]); // Note 'journey' is a dependency now
 
     return (
         <div className="h-full w-full relative bg-zinc-50">
@@ -222,10 +236,33 @@ const MapDisplay = () => {
                         bus={selectedBus}
                         userStart={userStart}
                         activeDirection={activeDirection}
+                        journey={journey}
                     />
                 )}
 
+                {/* Start Station */}
                 {userStart && <Marker position={[activeDirection === 1 ? (userStart.cw?.lat || userStart.lat) : (userStart.acw?.lat || userStart.lat), activeDirection === 1 ? (userStart.cw?.lng || userStart.lng) : (userStart.acw?.lng || userStart.lng)]} icon={createStationIcon("#C05621", "start")} />}
+
+                {/* --- ADD THIS: Transfer Hub Station --- */}
+                {/* --- Transfer Hub Marker --- */}
+                {/* --- Transfer Hub Marker --- */}
+                {journey?.type === 'TRANSFER' && (() => {
+                    const hub = STATIONS.find(s => s.id === journey.transferAt);
+                    if (!hub) return null;
+
+                    // Some stations use hub.cw.lat, others use hub.lat. This handles both:
+                    const lat = hub.cw?.lat || hub.lat;
+                    const lng = hub.cw?.lng || hub.lng;
+
+                    return (
+                        <Marker
+                            position={[lat, lng]}
+                            icon={createStationIcon("#fbbf24", "hub")}
+                        />
+                    );
+                })()}
+
+                {/* End Station */}
                 {userEnd && <Marker position={[activeDirection === 1 ? (userEnd.cw?.lat || userEnd.lat) : (userEnd.acw?.lat || userEnd.lat), activeDirection === 1 ? (userEnd.cw?.lng || userEnd.lng) : (userEnd.acw?.lng || userEnd.lng)]} icon={createStationIcon("#3b82f6", "end")} />}
 
                 {filteredBuses.map((bus) => {
@@ -243,15 +280,19 @@ const MapDisplay = () => {
                             }}
                             icon={L.divIcon({
                                 html: `
-        <div class="custom-bus-icon ${isSelected ? 'selected' : ''} ${bus.isLive ? 'is-live' : ''}" 
-             style="transform: rotate(${bus.heading}deg);">
-            <div style="
-                width: ${isSelected || bus.isLive ? '32px' : '26px'}; 
-                height: ${isSelected || bus.isLive ? '32px' : '26px'}; 
-                /* Live bus gets a bright Red, Selected gets Green, others get Orange */
-                background: ${bus.isLive ? '#ef4444' : (isSelected ? '#10b981' : (bus.direction === 1 ? '#C05621' : '#f97316'))}; 
-                border-radius: 8px; 
-                border: 2px solid white; 
+    <div class="custom-bus-icon ${isSelected ? 'selected' : ''}" 
+         style="transform: rotate(${bus.heading}deg);">
+        <div style="
+            width: ${isSelected ? '34px' : '28px'}; 
+            height: ${isSelected ? '34px' : '28px'}; 
+            /* NEW COLOR LOGIC */
+            background: ${journey?.type === 'TRANSFER'
+                                        ? (bus.routeId === journey.firstRouteId ? '#C05621' : '#8b5cf6')
+                                        : (isSelected ? '#10b981' : '#C05621')
+                                    }; 
+            border-radius: 8px; 
+            border: 2px solid white; 
+            
                 display: flex; 
                 align-items: center; 
                 justify-content: center;

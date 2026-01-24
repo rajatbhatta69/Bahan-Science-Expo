@@ -31,33 +31,33 @@ export const BusProvider = ({ children }) => {
   const [activeDirection, setActiveDirection] = useState(1);
   const [isManuallyDismissed, setIsManuallyDismissed] = useState(false); // <--- ADD THIS
 
-const [buses, setBuses] = useState(() => {
-  const fleet = [];
-  ROUTES.forEach(route => {
-    const count = route.id === 'R1' ? 12 : 4; 
-    
-    for (let i = 0; i < count; i++) {
-      fleet.push({
-        id: `${route.id}-B${i}`,
-        // UPDATE THIS LINE:
-        name: route.name, 
-        
-        numberPlate: `BA ${Math.floor(Math.random() * 9) + 1} PA ${Math.floor(1000 + Math.random() * 8999)}`,
-        routeId: route.id,
-        startProgress: i / count,
-        direction: i % 2 === 0 ? 1 : -1,
-        pathIndex: 0,
-        detailedPath: [],
-        lat: 27.7172, lng: 85.3240,
-        heading: 0,
-        totalSeats: 40,
-        availableSeats: Math.floor(Math.random() * 25),
-        delayMin: Math.floor(Math.random() * 8) - 2,
-      });
-    }
+  const [buses, setBuses] = useState(() => {
+    const fleet = [];
+    ROUTES.forEach(route => {
+      const count = route.id === 'R1' ? 12 : 4;
+
+      for (let i = 0; i < count; i++) {
+        fleet.push({
+          id: `${route.id}-B${i}`,
+          // UPDATE THIS LINE:
+          name: route.name,
+
+          numberPlate: `BA ${Math.floor(Math.random() * 9) + 1} PA ${Math.floor(1000 + Math.random() * 8999)}`,
+          routeId: route.id,
+          startProgress: i / count,
+          direction: i % 2 === 0 ? 1 : -1,
+          pathIndex: 0,
+          detailedPath: [],
+          lat: 27.7172, lng: 85.3240,
+          heading: 0,
+          totalSeats: 40,
+          availableSeats: Math.floor(Math.random() * 25),
+          delayMin: Math.floor(Math.random() * 8) - 2,
+        });
+      }
+    });
+    return fleet;
   });
-  return fleet;
-});
 
 
   useEffect(() => {
@@ -239,6 +239,38 @@ const [buses, setBuses] = useState(() => {
     };
   }, [buses, selectedBus]);
 
+  // --- THE BRAIN: Routing Logic ---
+  const findOptimalPath = (startId, endId, routes) => {
+    if (!startId || !endId) return null;
+
+    // 1. Check for a Direct Route first
+    const directRoute = routes.find(r =>
+      r.stations.includes(startId) && r.stations.includes(endId)
+    );
+    if (directRoute) return { type: 'DIRECT', routeId: directRoute.id };
+
+    // 2. Check for a 1-Transfer Route (The Handshake)
+    for (const r1 of routes) {
+      if (r1.stations.includes(startId)) {
+        for (const r2 of routes) {
+          if (r2.stations.includes(endId)) {
+            // Find a common station between the two routes
+            const common = r1.stations.find(sId => r2.stations.includes(sId));
+            if (common) {
+              return {
+                type: 'TRANSFER',
+                firstRouteId: r1.id,
+                secondRouteId: r2.id,
+                transferAt: common
+              };
+            }
+          }
+        }
+      }
+    }
+    return null;
+  };
+
   return (
     <BusContext.Provider value={{
       buses,
@@ -253,6 +285,7 @@ const [buses, setBuses] = useState(() => {
       activeDirection,
       findAndSelectNearestBus,
       setIsManuallyDismissed,
+      findOptimalPath, // <--- ADD THIS LINE HERE
       STATIONS,
       ROUTES
     }}>

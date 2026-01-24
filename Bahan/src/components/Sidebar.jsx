@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useBuses } from '../context/BusContext';
 import { MapPin, Navigation, Search, X, Clock, Map as MapIcon, ChevronLeft, Zap } from 'lucide-react';
+import { GitBranch, ArrowRight, Info } from 'lucide-react';
 import { calculateDistance } from '../utils/geoUtils'; // Use the central utility
 import AppLogo from '../assets/Logo_Dark.png'
 
@@ -77,7 +78,8 @@ const Sidebar = () => {
     buses, STATIONS, ROUTES, userStart, setUserStart,
     userEnd, setUserEnd, setSelectedBus, selectedBus,
     findAndSelectNearestBus, showBuses, setShowBuses,
-    activeDirection, setIsManuallyDismissed // <--- ADD THIS HERE
+    activeDirection, setIsManuallyDismissed,
+    findOptimalPath // <--- ADD THIS HERE
   } = useBuses();
 
   const getNextStationName = (bus) => {
@@ -125,15 +127,96 @@ const Sidebar = () => {
     }
   };
 
+  const journey = useMemo(() => {
+    const path = findOptimalPath(userStart?.id, userEnd?.id, ROUTES);
+    if (!path || path.type !== 'TRANSFER') return path;
+
+    // 1. FIND NEAREST FIRST LEG BUS
+    const firstLegBuses = buses
+      .filter(b => b.routeId === path.firstRouteId && b.direction === (path.firstLegDir || activeDirection))
+      .sort((a, b) => (a.pathDist || 0) - (b.pathDist || 0));
+
+    const bestFirstBus = firstLegBuses[0];
+
+    // 2. CALCULATE TRAVEL TIME TO HUB (y)
+    const route1 = ROUTES.find(r => r.id === path.firstRouteId);
+    let leg1TravelTime = 12; // Default fallback
+
+    if (route1 && bestFirstBus?.detailedPath) {
+      const startIdx = route1.stations.indexOf(userStart.id);
+      const hubIdx = route1.stations.indexOf(path.transferAt);
+      const totalPoints = bestFirstBus.detailedPath.length;
+
+      // Calculate index distance between Start and Hub
+      let indexDistance = 0;
+      if (route1.isCircular) {
+        indexDistance = bestFirstBus.direction === 1
+          ? (hubIdx - startIdx + totalPoints) % totalPoints
+          : (startIdx - hubIdx + totalPoints) % totalPoints;
+      } else {
+        indexDistance = Math.abs(hubIdx - startIdx);
+      }
+
+      // Convert index distance to minutes (approx 0.12 mins per index)
+      // We add the time it takes for the bus to even reach the user first
+      const timeToUser = (bestFirstBus.pathDist || 0) * 0.12;
+      leg1TravelTime = Math.round(timeToUser + (indexDistance * 0.12));
+    }
+
+    // 3. CALCULATE LEG 2 WAIT (p - y)
+    const secondLegBuses = buses
+      .filter(b => b.routeId === path.secondRouteId)
+      .map(bus => {
+        // Logic to find bus distance to Hub
+        // For simplicity, we use a random simulation here, 
+        // but you can apply the same index math as above
+        const busEtaToHub = Math.floor(Math.random() * 20) + 10;
+        return { ...bus, hubEta: busEtaToHub };
+      })
+      .filter(bus => bus.hubEta > leg1TravelTime)
+      .sort((a, b) => a.hubEta - b.hubEta);
+
+    const bestNextBus = secondLegBuses[0];
+    const waitTime = bestNextBus ? Math.round(bestNextBus.hubEta - leg1TravelTime) : 8;
+
+    return {
+      ...path,
+      leg1Time: leg1TravelTime,
+      leg2Wait: waitTime,
+      nextBusName: bestNextBus?.name || "Mahanagar Yatayat"
+    };
+  }, [userStart, userEnd, ROUTES, buses, activeDirection]);
 
   const displayBuses = useMemo(() => {
-    if (!showBuses || !userStart || !userEnd) return [];
+    if (!showBuses || !userStart || !journey) return [];
+
     return buses.filter(bus => {
       const route = ROUTES.find(r => r.id === bus.routeId);
-      const isOnRoute = route?.stations.includes(userStart.id) && route?.stations.includes(userEnd.id);
-      return isOnRoute && bus.direction === activeDirection;
+      if (!route) return false;
+
+      // 1. If journey is DIRECT: Strict Filtering
+      if (journey.type === 'DIRECT') {
+        const isCorrectRoute = route.stations.includes(userStart.id) && route.stations.includes(userEnd.id);
+        const isCorrectDir = bus.direction === activeDirection;
+        return isCorrectRoute && isCorrectDir;
+      }
+
+      // 2. If journey is TRANSFER: Show buses for the FIRST LEG (Start to Hub)
+      if (journey.type === 'TRANSFER') {
+        const isFirstLegRoute = route.stations.includes(userStart.id) && route.stations.includes(journey.transferAt);
+        if (!isFirstLegRoute) return false;
+
+        const startIdx = route.stations.indexOf(userStart.id);
+        const hubIdx = route.stations.indexOf(journey.transferAt);
+
+        // Use 1 and -1 to match the rest of the app
+        const requiredDir = hubIdx > startIdx ? 1 : -1;
+        return bus.direction === requiredDir;
+      }
+
+      return false;
     });
-  }, [showBuses, buses, ROUTES, userStart, userEnd, activeDirection]);
+  }, [showBuses, buses, ROUTES, userStart, userEnd, journey, activeDirection]);
 
 
   return (
@@ -287,16 +370,63 @@ const Sidebar = () => {
                     </button>
                   </div>
                 </div>
-                <div className="bg-zinc-900/50 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">System Status</span>
-                  <span className="text-emerald-500 font-mono text-[10px] font-bold animate-pulse">● TRACKING ACTIVE</span>
-                </div>
+                {/* DYNAMIC FOOTER: STATUS OR TRANSFER ALERT */}
+                {journey?.type === 'TRANSFER' ? (
+                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <GitBranch size={12} className="text-yellow-500" />
+                        <span className="text-[10px] text-yellow-500 font-black uppercase tracking-widest">Transfer Alert</span>
+                      </div>
+                      <span className="text-white font-mono text-[10px] font-bold animate-pulse">STEP 1 ACTIVE</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 leading-tight italic">
+                      "Stay on board. You need to get off at <span className="text-white font-bold">{STATIONS.find(s => s.id === journey.transferAt)?.name}</span> to catch your next bus."
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-zinc-900/50 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">System Status</span>
+                    <span className="text-emerald-500 font-mono text-[10px] font-bold animate-pulse">● TRACKING ACTIVE</span>
+                  </div>
+                )}
               </div>
             );
           })()
         ) : (
           <div className="space-y-4">
             <h2 className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] px-1">Available Rides</h2>
+
+            {/* SWITCH INFO CARD */}
+            {journey?.type === 'TRANSFER' && (
+              <div className="bg-zinc-900 border border-[#C05621]/30 p-5 rounded-2xl space-y-4 mb-4">
+                <div className="flex items-center gap-2 text-[#C05621]">
+                  <Zap size={16} />
+                  <span className="text-xs font-black uppercase">Smart Transfer Guidance</span>
+                </div>
+
+                <p className="text-sm text-zinc-300 leading-relaxed font-medium">
+                  "Take a <span className="text-white font-bold">{ROUTES.find(r => r.id === journey.firstRouteId)?.name}</span> bus from {userStart?.name}.
+                  You'll reach <span className="text-[#C05621] font-bold">{STATIONS.find(s => s.id === journey.transferAt)?.name}</span> in about
+                  <span className="text-white font-bold"> {journey.leg1Time} minutes</span>."
+                </p>
+
+                <div className="py-3 border-y border-white/5 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock size={14} className="text-zinc-500" />
+                    <span className="text-[10px] text-zinc-500 uppercase font-bold">Waiting Time</span>
+                  </div>
+                  <span className="text-emerald-500 font-black">{journey.leg2Wait} MINS</span>
+                </div>
+
+                <p className="text-sm text-zinc-300 leading-relaxed font-medium">
+                  "After you arrive, a <span className="text-white font-bold">{journey.nextBusName}</span> bus will reach the hub in
+                  <span className="text-white font-bold"> {journey.leg2Wait} minutes</span> to take you to {userEnd?.name}."
+                </p>
+              </div>
+            )}
+
+
             {displayBuses.map((bus) => (
               <div key={bus.id} onClick={() => setSelectedBus(bus)} className="p-4 rounded-2xl cursor-pointer border border-white/5 bg-white/5 hover:bg-white/10 transition-all mb-3 group">
                 <div className="flex justify-between items-center mb-3">

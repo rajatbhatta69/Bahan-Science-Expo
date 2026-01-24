@@ -36,10 +36,10 @@ export const getLiveTetherPath = (bus, userStart) => {
     if (dir === 1) {
         // Clockwise: Calculate how many steps until we hit the station
         const steps = (userPointIndex - busIdx + total) % total;
-        
+
         // LIMIT: If the station is more than 60% of the route away, 
         // it's probably behind us in a circular route.
-        if (steps > total * 0.6) return []; 
+        if (steps > total * 0.6) return [];
 
         for (let i = 0; i <= steps; i++) {
             tetherPoints.push(path[(busIdx + i) % total]);
@@ -47,7 +47,7 @@ export const getLiveTetherPath = (bus, userStart) => {
     } else {
         // Anti-Clockwise: Calculate how many steps backward
         const steps = (busIdx - userPointIndex + total) % total;
-        
+
         if (steps > total * 0.6) return [];
 
         for (let i = 0; i <= steps; i++) {
@@ -104,4 +104,55 @@ export const getRoutePath = (startId, endId, routeId, ROUTES, STATIONS) => {
     const clockwise = getPathWithDistance('CW');
     const antiClockwise = getPathWithDistance('ACW');
     return clockwise.distance <= antiClockwise.distance ? clockwise.path : antiClockwise.path;
+};
+
+/**
+ * Internal helper to find a transfer point between two stations
+ * that are not on the same route.
+ */
+const handleNoDirectBus = (startId, endId, ROUTES) => {
+    const startRoutes = ROUTES.filter(r => r.stations.includes(startId));
+    const endRoutes = ROUTES.filter(r => r.stations.includes(endId));
+
+    for (const r1 of startRoutes) {
+        for (const r2 of endRoutes) {
+            // Find a common station (The Hub)
+            const hubId = r1.stations.find(sId => r2.stations.includes(sId));
+
+            if (hubId) {
+                return {
+                    type: 'TRANSFER',
+                    firstRouteId: r1.id,
+                    secondRouteId: r2.id,
+                    transferAt: hubId,
+                    firstLeg: [startId, hubId],
+                    secondLeg: [hubId, endId]
+                };
+            }
+        }
+    }
+    return null; // Truly no path found
+};
+
+/**
+ * The main entry point for the UI to find a journey.
+ */
+export const findOptimalPath = (startId, endId, ROUTES) => {
+    if (!startId || !endId) return null;
+
+    // 1. Check if a direct route exists
+    const directRoute = ROUTES.find(r => 
+        r.stations.includes(startId) && r.stations.includes(endId)
+    );
+
+    if (directRoute) {
+        return {
+            type: 'DIRECT',
+            routeId: directRoute.id,
+            path: [startId, endId]
+        };
+    }
+
+    // 2. If no direct, handle the switch
+    return handleNoDirectBus(startId, endId, ROUTES);
 };
