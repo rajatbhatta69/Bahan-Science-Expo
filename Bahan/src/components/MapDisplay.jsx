@@ -125,44 +125,111 @@ const LiveETALine = ({ bus, userStart, activeDirection, journey }) => {
         />
     );
 };
-const StreetRoute = ({ start, end, isActive, onPathTrace }) => {
-    const [path, setPath] = useState([]);
-    const { STATIONS, ROUTES } = useBuses();
+
+
+const StreetRoute = ({ start, end, isActive }) => {
+    const [paths, setPaths] = useState({ leg1: [], leg2: [] });
+    const { STATIONS, ROUTES, journey } = useBuses();
 
     useEffect(() => {
-        if (start && end) {
-            const route = ROUTES.find(r => r.stations.includes(start.id) && r.stations.includes(end.id));
-            if (!route) return;
+        // Reset paths when search is cleared
+        if (!start || !end || !journey) {
+            setPaths({ leg1: [], leg2: [] });
+            return;
+        }
 
-            const sIdx = route.stations.indexOf(start.id);
-            const eIdx = route.stations.indexOf(end.id);
+        const getWaypoints = (sId, eId, routeId) => {
+            const route = ROUTES.find(r => r.id === routeId);
+            if (!route) return null;
+            const sIdx = route.stations.indexOf(sId);
+            const eIdx = route.stations.indexOf(eId);
 
-            // GATEKEEPER: Select correct pathing logic
+            // Re-using your existing logic helpers
             const { direction, pathIds } = route.isCircular
                 ? handleCircularPath(sIdx, eIdx, route.stations)
                 : handleLinearPath(sIdx, eIdx, route.stations);
 
-            const waypoints = pathIds.map(id => {
+            return pathIds.map(id => {
                 const st = STATIONS.find(s => s.id === id);
                 const coords = direction === 1 ? (st.cw || st) : (st.acw || st);
                 return `${coords.lng},${coords.lat}`;
             }).join(';');
+        };
 
-            fetch(`https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.routes?.[0]?.geometry?.coordinates) {
-                        const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-                        setPath(coords);
-                        if (onPathTrace) onPathTrace(coords);
-                    }
-                }).catch(err => console.error(err));
-        }
-    }, [start, end, ROUTES, STATIONS]);
+        const fetchAll = async () => {
+            try {
+                if (journey.type === 'TRANSFER') {
+                    const w1 = getWaypoints(start.id, journey.transferAt, journey.firstRouteId);
+                    const w2 = getWaypoints(journey.transferAt, end.id, journey.secondRouteId);
 
-    return path.length > 1 ? <Polyline positions={path} pathOptions={{ color: '#3b82f6', weight: isActive ? 6 : 4, opacity: isActive ? 1 : 0.4 }} /> : null;
+                    const [res1, res2] = await Promise.all([
+                        fetch(`https://router.project-osrm.org/route/v1/driving/${w1}?overview=full&geometries=geojson`),
+                        fetch(`https://router.project-osrm.org/route/v1/driving/${w2}?overview=full&geometries=geojson`)
+                    ]);
+
+                    const d1 = await res1.json();
+                    const d2 = await res2.json();
+
+                    setPaths({
+                        leg1: d1.routes?.[0]?.geometry?.coordinates.map(c => [c[1], c[0]]) || [],
+                        leg2: d2.routes?.[0]?.geometry?.coordinates.map(c => [c[1], c[0]]) || []
+                    });
+                } else {
+                    const w1 = getWaypoints(start.id, end.id, journey.routeId);
+                    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${w1}?overview=full&geometries=geojson`);
+                    const d = await res.json();
+                    setPaths({
+                        leg1: d.routes?.[0]?.geometry?.coordinates.map(c => [c[1], c[0]]) || [],
+                        leg2: []
+                    });
+                }
+            } catch (err) {
+                console.error("Route Fetch Failed", err);
+            }
+        };
+
+        fetchAll();
+    }, [journey, start, end]);
+
+    return (
+        <>
+
+            {/* Add this inside the fragment, before Leg 1 */}
+            {paths.leg1.length > 0 && (
+                <Polyline
+                    positions={paths.leg1}
+                    pathOptions={{ color: 'white', weight: 8, opacity: 0.5 }}
+                />
+            )}
+            {/* LEG 1: Royal Indigo - Solid and Strong */}
+            {paths.leg1.length > 0 && (
+                <Polyline
+                    positions={paths.leg1}
+                    pathOptions={{
+                        color: '#4338ca',
+                        weight: 5,
+                        opacity: isActive ? 0.9 : 0.3,
+                        lineCap: 'round'
+                    }}
+                />
+            )}
+
+            {/* LEG 2: Vibrant Amber - Dashed to indicate the "Next" phase */}
+            {paths.leg2.length > 0 && (
+                <Polyline
+                    positions={paths.leg2}
+                    pathOptions={{
+                        color: '#f59e0b',
+                        weight: 5,
+                        opacity: isActive ? 0.9 : 0.3,
+                        dashArray: '8, 12',
+                        lineCap: 'round'
+                    }}
+                />
+            )}
+        </>
+    );
 };
-
 // --- MAIN DISPLAY ---
 
 const MapDisplay = () => {
@@ -201,26 +268,51 @@ const MapDisplay = () => {
 
     // 3. Keep filteredBuses but use the context's direction
     const filteredBuses = useMemo(() => {
+        // 1. Always keep Live (GPS tracked) buses as priority
         const liveBuses = buses.filter(bus => bus.isLive);
         let routeMockBuses = [];
 
-        if (showBuses && userStart && userEnd) {
+        if (showBuses && userStart && userEnd && journey) {
             routeMockBuses = buses.filter(bus => {
-                if (bus.isLive) return false;
-                const route = ROUTES.find(r => r.id === bus.routeId);
+                if (bus.isLive) return false; // Handled above
 
-                if (journey?.type === 'TRANSFER') {
-                    return route?.id === journey.firstRouteId || route?.id === journey.secondRouteId;
+                const route = ROUTES.find(r => r.id === bus.routeId);
+                if (!route) return false;
+
+                // --- CASE A: DIRECT JOURNEY ---
+                if (journey.type === 'DIRECT') {
+                    const isOnRoute = route.stations.includes(userStart.id) &&
+                        route.stations.includes(userEnd.id);
+                    // Only show buses going the user's direction (activeDirection)
+                    return isOnRoute && bus.direction === activeDirection;
                 }
 
-                const isOnRoute = route?.stations.includes(userStart.id) &&
-                    route?.stations.includes(userEnd.id);
-                return isOnRoute && bus.direction === activeDirection;
+                // --- CASE B: TRANSFER JOURNEY ---
+                if (journey.type === 'TRANSFER') {
+                    // Check if bus belongs to Leg 1
+                    if (bus.routeId === journey.firstRouteId) {
+                        const sIdx = route.stations.indexOf(userStart.id);
+                        const hIdx = route.stations.indexOf(journey.transferAt);
+                        const leg1Dir = hIdx > sIdx ? 1 : -1;
+                        return bus.direction === leg1Dir;
+                    }
+
+                    // Check if bus belongs to Leg 2
+                    if (bus.routeId === journey.secondRouteId) {
+                        const hIdx = route.stations.indexOf(journey.transferAt);
+                        const eIdx = route.stations.indexOf(userEnd.id);
+                        const leg2Dir = eIdx > hIdx ? 1 : -1;
+                        return bus.direction === leg2Dir;
+                    }
+                }
+
+                return false;
             });
         }
 
+        // Merge and remove duplicates by ID
         return [...new Map([...routeMockBuses, ...liveBuses].map(b => [b.id, b])).values()];
-    }, [buses, userStart, userEnd, ROUTES, showBuses, activeDirection, journey]); // Note 'journey' is a dependency now
+    }, [buses, userStart, userEnd, ROUTES, showBuses, activeDirection, journey]);
 
     return (
         <div className="h-full w-full relative bg-zinc-50">
@@ -229,7 +321,15 @@ const MapDisplay = () => {
 
                 <MapController isLocked={isLocked} routePath={currentPathPoints} activeDirection={activeDirection} />
 
-                {userStart && userEnd && <StreetRoute start={userStart} end={userEnd} isActive={showBuses} onPathTrace={setCurrentPathPoints} />}
+                {userStart && userEnd && (
+                    <StreetRoute
+                        start={userStart}
+                        end={userEnd}
+                        isActive={showBuses}
+                        onPathTrace={setCurrentPathPoints}
+                        journey={journey} // <-- Force pass it here
+                    />
+                )}
 
                 {showBuses && selectedBus && userStart && (
                     <LiveETALine
@@ -286,10 +386,12 @@ const MapDisplay = () => {
             width: ${isSelected ? '34px' : '28px'}; 
             height: ${isSelected ? '34px' : '28px'}; 
             /* NEW COLOR LOGIC */
-            background: ${journey?.type === 'TRANSFER'
-                                        ? (bus.routeId === journey.firstRouteId ? '#C05621' : '#8b5cf6')
-                                        : (isSelected ? '#10b981' : '#C05621')
-                                    }; 
+            background: ${bus.isLive
+                                        ? '#10b981' // 1. Priority: Live is ALWAYS Emerald Green
+                                        : journey?.type === 'TRANSFER'
+                                            ? (bus.routeId === journey.firstRouteId ? '#C05621' : '#8b5cf6') // 2. Transfer colors
+                                            : (isSelected ? '#3b82f6' : '#C05621') // 3. Standard Selection (Blue) or Mock (Orange)
+                                    };
             border-radius: 8px; 
             border: 2px solid white; 
             
@@ -310,9 +412,9 @@ const MapDisplay = () => {
                     border-bottom: 8px solid ${bus.isLive ? '#ef4444' : (isSelected ? '#10b981' : 'white')};
                 "></div>
                 
-                <span style="color: white; font-size: ${bus.isLive ? '12px' : '10px'}; font-weight: 800;">
-                    ${bus.isLive ? '⚡' : '🚌'}
-                </span>
+                <span style="color: white; font-size: ${bus.isLive ? '14px' : '10px'}; font-weight: 800;">
+    ${bus.isLive ? '📡' : '🚌'} 
+</span>
 
                 ${bus.isLive ? `
                     <div style="

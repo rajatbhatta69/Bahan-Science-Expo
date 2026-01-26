@@ -3,7 +3,7 @@ import { BusProvider } from './context/BusContext';
 import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
 import MapDisplay from './components/MapDisplay';
-import DriverPortal from './pages/DriverPortal'; // Import your new page
+import DriverPortal from './pages/DriverPortal';
 import './App.css';
 
 function App() {
@@ -11,16 +11,27 @@ function App() {
     <Router>
       <BusProvider>
         <Routes>
-          {/* DRIVER ROUTE: A clean, simple page for the phone */}
+          {/* DRIVER ROUTE */}
           <Route path="/driver" element={<DriverPortal />} />
 
-          {/* MAIN APP ROUTE: The full dashboard for users */}
+          {/* MAIN APP ROUTE */}
           <Route path="/" element={
-            <div className="flex h-screen w-full bg-slate-950 overflow-hidden">
+            /* Changed from 'flex' to 'relative block' on mobile 
+               so the sidebar can float over the map.
+            */
+            <div className="relative h-screen w-full bg-slate-950 overflow-hidden lg:flex">
+
+              {/* Sidebar: Now handles its own positioning via Tailwind */}
               <Sidebar />
-              <main className="flex-1 relative flex flex-col">
-                <Navbar />
-                <div className="flex-1 bg-slate-900 flex items-center justify-center">
+
+              <main className="flex-1 relative flex flex-col h-full w-full">
+                {/* Navbar: Usually hidden on mobile to save space, visible on LG screens */}
+                <div className="hidden lg:block">
+                  <Navbar />
+                </div>
+
+                {/* Map Container: Full screen on mobile */}
+                <div className="flex-1 bg-slate-900 relative">
                   <MapDisplay />
                 </div>
               </main>

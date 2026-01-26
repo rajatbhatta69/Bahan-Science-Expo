@@ -61,41 +61,38 @@ export const BusProvider = ({ children }) => {
 
 
   useEffect(() => {
-    // 1. Reference the ENTIRE 'live_buses' folder, not just 'bus_1'
     const allLiveBusesRef = ref(db, 'live_buses');
 
     const unsubscribe = onValue(allLiveBusesRef, (snapshot) => {
-      const allData = snapshot.val(); // This is now an object: { "R1-B0": {...}, "R1-B1": {...} }
+      const allData = snapshot.val();
 
-      setBuses(prevBuses => prevBuses.map(bus => {
-        // 2. Check if THIS specific bus has data in Firebase
-        const liveData = allData ? allData[bus.id] : null;
+      setBuses(prevBuses => {
+        // 1. Separate the "Static/Mock" fleet from the "Live" fleet
+        // We keep the original fleet but replace specific ones with live data
+        return prevBuses.map(bus => {
+          const liveData = allData ? allData[bus.id] : null;
 
-        if (liveData && liveData.active) {
-          // 3. Calculate heading only if it moved
-          const newHeading = (liveData.lat !== bus.lat || liveData.lng !== bus.lng)
-            ? getBearing(bus.lat, bus.lng, liveData.lat, liveData.lng)
-            : bus.heading;
+          if (liveData && liveData.active) {
+            return {
+              ...bus,
+              lat: liveData.lat,
+              lng: liveData.lng,
+              heading: liveData.heading || bus.heading,
+              isLive: true,
+              // STOP! Do not reset the direction to activeDirection here. 
+              // Let the live driver be independent.
+            };
+          }
 
-          return {
-            ...bus,
-            lat: liveData.lat,
-            lng: liveData.lng,
-            heading: newHeading,
-            isLive: true,
-            // We keep the current search direction so it stays visible on the map
-            direction: activeDirection
-          };
-        }
-
-        // 4. If the bus is NOT in Firebase (driver stopped), 
-        // it reverts to being a normal mock bus.
-        return { ...bus, isLive: false };
-      }));
+          // 2. If NOT in Firebase, return the bus but mark isLive as false
+          // This allows the simulationEngine (the "Motor") to take over again.
+          return { ...bus, isLive: false };
+        });
+      });
     });
 
     return () => unsubscribe();
-  }, [activeDirection]); // Add activeDirection here so the bus updates when user switches views
+  }, []); // Remove activeDirection dependency to prevent flickering loops
 
   // Initial fleet generation
 
@@ -271,6 +268,12 @@ export const BusProvider = ({ children }) => {
     return null;
   };
 
+  // --- NEW: GLOBAL JOURNEY STATE ---
+  const journey = useMemo(() => {
+    return findOptimalPath(userStart?.id, userEnd?.id, ROUTES);
+  }, [userStart, userEnd]);
+
+  // Update your Provider Value to include 'journey'
   return (
     <BusContext.Provider value={{
       buses,
@@ -285,7 +288,8 @@ export const BusProvider = ({ children }) => {
       activeDirection,
       findAndSelectNearestBus,
       setIsManuallyDismissed,
-      findOptimalPath, // <--- ADD THIS LINE HERE
+      findOptimalPath,
+      journey, // <--- ADD THIS
       STATIONS,
       ROUTES
     }}>
