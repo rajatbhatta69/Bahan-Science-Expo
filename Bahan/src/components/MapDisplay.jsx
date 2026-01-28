@@ -316,10 +316,25 @@ const MapDisplay = () => {
 
     return (
         <div className="h-full w-full relative bg-zinc-50">
-            <MapContainer center={[27.7172, 85.3240]} zoom={13} className="h-full w-full" zoomControl={false}>
-                <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
+            <MapContainer
+                center={[27.7172, 85.3240]}
+                zoom={13}
+                className="h-full w-full"
+                zoomControl={false}
+                attributionControl={false}
+            >
+                <TileLayer
+                    url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                    attribution="© OpenStreetMap contributors"
+                />
 
-                <MapController isLocked={isLocked} routePath={currentPathPoints} activeDirection={activeDirection} />
+                <MapController
+                    isLocked={isLocked}
+                    routePath={currentPathPoints}
+                    activeDirection={activeDirection}
+                />
+
+
 
                 {userStart && userEnd && (
                     <StreetRoute
@@ -452,7 +467,7 @@ const MapDisplay = () => {
             </MapContainer>
 
             {showBuses && (
-                <button onClick={() => setIsLocked(!isLocked)} className="absolute bottom-8 right-8 z-[1001] bg-white text-zinc-900 px-6 py-4 rounded-2xl shadow-2xl font-bold flex items-center gap-3">
+                <button onClick={() => setIsLocked(!isLocked)} className="absolute bottom-8 right-8 bg-white text-zinc-900 px-6 py-4 rounded-2xl shadow-2xl font-bold flex items-center gap-3">
                     {isLocked ? <Maximize size={20} /> : <Target size={20} className="text-[#C05621]" />}
                     {isLocked ? "FREE VIEW" : "FOLLOW BUS"}
                 </button>
