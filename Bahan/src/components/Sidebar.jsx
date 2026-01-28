@@ -86,6 +86,10 @@ const Sidebar = () => {
   const [touchStart, setTouchStart] = React.useState(null);
   const [touchEnd, setTouchEnd] = React.useState(null);
 
+  // UI-only bottom sheet state
+  const [sheetState, setSheetState] = useState('half');
+  // 'collapsed' | 'half' | 'expanded'
+
   const onTouchStart = (e) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientY);
@@ -100,15 +104,17 @@ const Sidebar = () => {
     const isDownSwipe = distance < -50;
 
     if (isUpSwipe) {
-      if (userStart && userEnd) setShowBuses(true);
-    } else if (isDownSwipe) {
-      if (selectedBus) {
-        setSelectedBus(null);
-        setIsManuallyDismissed(true);
-      } else {
-        setShowBuses(false);
-      }
+      setSheetState((prev) =>
+        prev === 'collapsed' ? 'half' : 'expanded'
+      );
     }
+
+    if (isDownSwipe) {
+      setSheetState((prev) =>
+        prev === 'expanded' ? 'half' : 'collapsed'
+      );
+    }
+
   };
   // --- TOUCH LOGIC END ---
 
@@ -292,7 +298,13 @@ const Sidebar = () => {
         
         /* MOBILE (Small screens) */
         fixed bottom-0 left-0 w-full bg-zinc-950/95 border-t rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]
-        ${selectedBus ? 'h-[85vh]' : showBuses ? 'h-[70vh]' : 'h-[50vh]'}
+        ${sheetState === 'collapsed'
+          ? 'h-[18vh]'
+          : sheetState === 'half'
+            ? 'h-[45vh]'
+            : 'h-[85vh]'
+        }
+
       `}
     >
       {/* Mobile Drag Handle - The Touch Trigger */}
@@ -347,7 +359,8 @@ const Sidebar = () => {
               onSelect={(val) => {
                 setUserEnd(val);
                 setSelectedBus(null);
-                if (val) setShowBuses(true); // This force-opens the sidebar on mobile
+                if (val) setSheetState('half');
+                // This force-opens the sidebar on mobile
               }}
               stations={STATIONS}
             />
@@ -378,7 +391,7 @@ const Sidebar = () => {
             <div className="flex items-center gap-2">
               {/* This is your new 'Swipe Down' button */}
               <button
-                onClick={() => setShowBuses(false)}
+                onClick={() => setSheetState('collapsed')}
                 className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-zinc-400 transition-all active:scale-90 lg:hidden"
                 title="Minimize"
               >
