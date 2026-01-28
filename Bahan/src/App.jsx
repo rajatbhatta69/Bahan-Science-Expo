@@ -5,6 +5,8 @@ import Navbar from './components/Navbar';
 import MapDisplay from './components/MapDisplay';
 import DriverPortal from './pages/DriverPortal';
 import './App.css';
+import { Analytics } from "@vercel/analytics/next"
+
 
 function App() {
   return (
