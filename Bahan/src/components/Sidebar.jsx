@@ -88,7 +88,9 @@ const Sidebar = () => {
 
   // UI-only bottom sheet state
   const [sheetState, setSheetState] = useState('half');
-  // 'collapsed' | 'half' | 'expanded'
+  // 'collapsed' | 'half' | 'expanded'\
+
+  const [error, setError] = useState("");
 
   const onTouchStart = (e) => {
     setTouchEnd(null);
@@ -157,9 +159,20 @@ const Sidebar = () => {
 
   const handleSearchClick = () => {
     if (userStart && userEnd) {
+      setError(""); // Clear error if inputs are present
       findAndSelectNearestBus();
     } else {
-      alert("Please select both your location and destination.");
+      // Determine the specific message
+      const message = !userStart && !userEnd
+        ? "Please select both locations."
+        : !userStart
+          ? "Where are you starting from?"
+          : "Where do you want to go?";
+
+      setError(message);
+
+      // Auto-clear the error after 3 seconds
+      setTimeout(() => setError(""), 3000);
     }
   };
 
@@ -339,43 +352,52 @@ const Sidebar = () => {
 
         {/* DYNAMIC TOP SECTION */}
         {!showBuses ? (
-          // 1. Show FULL inputs while the user is still deciding
-          <div className="space-y-4 bg-white/5 p-4 rounded-2xl border border-white/5 shadow-inner animate-in fade-in duration-500">
+          <div className="space-y-4 bg-white/5 p-4 rounded-2xl border border-white/5 shadow-inner transition-all duration-500">
+
             <SearchableSelect
               label="From"
               icon={<MapPin size={16} />}
-              color="text-[#C05621]"
+              color={!userStart && error ? "text-red-500" : "text-[#C05621]"} // Turns red if missing
               placeholder="Starting station"
               value={userStart}
-              onSelect={(val) => { setUserStart(val); setSelectedBus(null); }}
+              onSelect={(val) => { setUserStart(val); setError(""); }}
               stations={STATIONS}
             />
+
             <SearchableSelect
               label="To"
               icon={<Navigation size={16} />}
-              color="text-blue-500"
+              color={!userEnd && error ? "text-red-500" : "text-blue-500"} // Turns red if missing
               placeholder="Destination station"
               value={userEnd}
-              onSelect={(val) => {
-                setUserEnd(val);
-                setSelectedBus(null);
-                if (val) setSheetState('half');
-                // This force-opens the sidebar on mobile
-              }}
+              onSelect={(val) => { setUserEnd(val); setError(""); }}
               stations={STATIONS}
             />
+
+            {/* Elegant Slide-in Error Message */}
+            <div className={`overflow-hidden transition-all duration-300 ease-out ${error ? 'max-h-10 opacity-100 mb-2' : 'max-h-0 opacity-0'}`}>
+              <div className="flex items-center gap-2 px-1 text-red-400 bg-red-500/5 py-2 rounded-lg border border-red-500/20">
+                <Info size={12} className="animate-pulse" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">{error}</span>
+              </div>
+            </div>
+
             <button
               onClick={handleSearchClick}
-              className="w-full bg-[#C05621] hover:bg-[#e66a2e] text-white font-black py-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-[#C05621]/20 group"
+              className={`w-full font-black py-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg group
+        ${error
+                  ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed shadow-none'
+                  : 'bg-[#C05621] hover:bg-[#e66a2e] text-white shadow-[#C05621]/20'
+                }`}
             >
-              <Search size={18} className="group-hover:scale-125 transition-transform" />
+              <Search size={18} className="group-hover:scale-110 transition-transform" />
               FIND LIVE RIDES
             </button>
           </div>
         ) : (
+
           // 2. SHRINK only AFTER the user clicks "FIND LIVE RIDES" 
-          // or if they have already selected a specific bus.
-          // 2. SHRINK only AFTER the user clicks "FIND LIVE RIDES" 
+          // or if they have already selected a specific bus. 
           <div className="bg-[#C05621]/10 border border-[#C05621]/20 p-4 rounded-2xl flex items-center justify-between animate-in slide-in-from-top-2 duration-300">
             <div className="flex flex-col">
               <span className="text-[9px] text-zinc-500 font-black uppercase tracking-widest">
