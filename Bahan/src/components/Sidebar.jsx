@@ -5,7 +5,7 @@ import { GitBranch, ArrowRight, Info } from 'lucide-react';
 import { calculateDistance } from '../utils/geoUtils'; // Use the central utility
 import AppLogo from '../assets/Logo_Dark.png'
 
-// --- SUB-COMPONENT: SEARCHABLE DROPDOWN ---
+//Searchable Dropdown in ascending order
 const SearchableSelect = ({ label, icon, color, placeholder, value, onSelect, stations }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -79,7 +79,7 @@ const Sidebar = () => {
     userEnd, setUserEnd, setSelectedBus, selectedBus,
     findAndSelectNearestBus, showBuses, setShowBuses,
     activeDirection, setIsManuallyDismissed,
-    findOptimalPath // <--- ADD THIS HERE
+    findOptimalPath
   } = useBuses();
 
   // --- TOUCH LOGIC START ---
@@ -90,11 +90,11 @@ const Sidebar = () => {
   const [sheetState, setSheetState] = useState('half');
   // 'collapsed' | 'half' | 'expanded'\
 
-  const [error, setError] = useState("");
+  const [error, setError] = useState(""); //For when the user doesnt enter the locations and clicks the button
 
   const onTouchStart = (e) => {
     setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientY);
+    setTouchStart(e.targetTouches[0].clientY); //Tracking the gesture of client's Y axis
   };
 
   const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientY);
@@ -102,24 +102,23 @@ const Sidebar = () => {
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
-    const isUpSwipe = distance > 50;
-    const isDownSwipe = distance < -50;
+    const isUpSwipe = distance > 30;   // Reduced from 50 for better sensitivity
+    const isDownSwipe = distance < -30; // Reduced from 50
 
     if (isUpSwipe) {
-      setSheetState((prev) =>
-        prev === 'collapsed' ? 'half' : 'expanded'
-      );
+      setSheetState((prev) => (prev === 'collapsed' ? 'half' : 'expanded'));
+    } else if (isDownSwipe) {
+      setSheetState((prev) => (prev === 'expanded' ? 'half' : 'collapsed'));
     }
 
-    if (isDownSwipe) {
-      setSheetState((prev) =>
-        prev === 'expanded' ? 'half' : 'collapsed'
-      );
-    }
-
+    // CRITICAL: Reset these so the next touch starts fresh
+    setTouchStart(null);
+    setTouchEnd(null);
   };
   // --- TOUCH LOGIC END ---
 
+
+  //Get the next station of the bus
   const getNextStationName = (bus) => {
     const route = ROUTES.find(r => r.id === bus.routeId);
     if (!route || !bus.detailedPath || bus.detailedPath.length === 0) return "Detecting...";
@@ -135,7 +134,7 @@ const Sidebar = () => {
       const coords = bus.direction === 1 ? (station.cw || station) : (station.acw || station);
 
       bus.detailedPath.forEach((pt, i) => {
-        const d = Math.pow(pt[0] - coords.lat, 2) + Math.pow(pt[1] - coords.lng, 2);
+        const d = Math.pow(pt[0] - coords.lat, 2) + Math.pow(pt[1] - coords.lng, 2); //$d = \sqrt{(x_2-x_1)^2 + (y_2-y_1)^2}$)
         if (d < minD) { minD = d; stationPathIdx = i; }
       });
       return { name: station.name, idx: stationPathIdx };
@@ -304,7 +303,9 @@ const Sidebar = () => {
     <div
       className={`
         /* SHARED STYLES */
-        flex flex-col font-sans z-[1000] overflow-hidden backdrop-blur-xl border-white/10 transition-all duration-500 ease-in-out
+        flex flex-col font-sans z-[1000] overflow-hidden backdrop-blur-xl border-white/10 
+        transition-[height] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] 
+        will-change-[height] transform-gpu
         
         /* DESKTOP (Large screens) */
         lg:w-96 lg:h-screen lg:bg-zinc-950/80 lg:border-r lg:relative lg:translate-y-0
@@ -322,10 +323,11 @@ const Sidebar = () => {
     >
       {/* Mobile Drag Handle - The Touch Trigger */}
       <div
-        className="lg:hidden w-full flex justify-center pt-4 pb-3 cursor-grab active:cursor-grabbing touch-none"
+        className="lg:hidden w-full flex justify-center pt-4 pb-3 cursor-grab active:cursor-grabbing touch-none select-none"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
+        style={{ touchAction: 'none' }}
       >
         <div className="w-12 h-1.5 bg-white/20 rounded-full" />
       </div>
