@@ -256,7 +256,6 @@ const MapDisplay = () => {
 
         try {
             const path = findOptimalPath(userStart.id, userEnd.id, ROUTES);
-            console.log("📍 Map Calculated Journey:", path); // CHECK YOUR BROWSER CONSOLE FOR THIS
             return path;
         } catch (err) {
             console.error("Routing Error:", err);
@@ -476,4 +475,4 @@ const MapDisplay = () => {
     );
 };
 
-export default MapDisplay;
+export default MapDisplay;''

@@ -4,7 +4,7 @@ export const STATIONS = [
   { id: 'kalanki', name: 'Kalanki', cw: { lat: 27.695695, lng: 85.281364 }, acw: { lat: 27.696294, lng: 85.281760 } },
   { id: 'bafal', name: 'Bafal', cw: { lat: 27.700996, lng: 85.281580 }, acw: { lat: 27.700834, lng: 85.281956 } },
   { id: 'sitapaila', name: 'Sitapaila', cw: { lat: 27.706985, lng: 85.282314 }, acw: { lat: 27.707298, lng: 85.282727 } },
-  { id: 'swyambhu', name: 'Swyambhu', cw: { lat: 27.716473, lng: 85.283498 }, acw: { lat: 27.715681, lng: 85.283717 } },
+  { id: 'swyambhu', name: 'Swoyambhu', cw: { lat: 27.716473, lng: 85.283498 }, acw: { lat: 27.715681, lng: 85.283717 } },
   { id: 'thulo-bharyang', name: 'Thulo Bharyang', cw: { lat: 27.719809, lng: 85.287085 }, acw: { lat: 27.719990, lng: 85.287956 } },
   // FIXED: Added sano-bharyang which was missing
   { id: 'sano-bharyang', name: 'Sano Bharyang', cw: { lat: 27.7215, lng: 85.2910 }, acw: { lat: 27.7212, lng: 85.2905 } },
@@ -54,7 +54,7 @@ export const STATIONS = [
 export const ROUTES = [
   {
     id: 'R1',
-    name: 'Mahanagar Yata',
+    name: 'Mahanagar Yatayat',
     stations: [
       'kalanki', 'bafal', 'sitapaila', 'swyambhu', 'thulo-bharyang',
       'sano-bharyang', 'dhungedhara', 'banasthali', 'balaju',
@@ -67,7 +67,7 @@ export const ROUTES = [
   },
   {
     id: 'R2',
-    name: 'Balaju Yatayat Yatayat',
+    name: 'Balaju Yatayat',
     stations: [
       'raniban', 'dhungedhara', 'banasthali', 'balaju', 'nayabazar', 'sorhakhutte', 'thamel', 'lainchaur',
       'jamal', 'ratnapark', 'bhadrakali', 'nac', // The One-Way Loop

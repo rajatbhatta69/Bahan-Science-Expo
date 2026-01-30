@@ -48,7 +48,7 @@ const Navbar = () => {
             onClick={() => setIsReportModalOpen(true)}
             className="bg-[#C05621] hover:bg-[#a3491c] text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors shadow-[0_0_15px_rgba(192,86,33,0.3)]"
           >
-            REPORT DELAY
+            REPORT
           </button>
         </div>
       </nav>
