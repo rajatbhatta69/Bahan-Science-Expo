@@ -1,76 +1,36 @@
 @import "tailwindcss";
 
-/* --- PERFORMANCE BOOSTERS --- */
-
-/* Force the GPU to handle bus markers to stop lag */
-.custom-bus-icon {
-    transition: transform 1000ms linear; /* Smooth rotation */
-    display: flex;
-    align-items: center;
-    justify-content: center;
+/* ==========================================================================
+   1. GLOBAL & RESET
+   ========================================================================== */
+:root {
+  --brand-orange: #C05621;
+  --brand-emerald: #10b981;
 }
 
-.pulse-ring {
-    position: absolute;
-    width: 45px;
-    height: 45px;
-    border: 3px solid #10b981;
-    border-radius: 50%;
-    animation: pulse 2s infinite;
+body {
+  margin: 0;
+  /* CHANGE THIS: From hidden to auto/unset */
+  overflow-y: auto;
+  background-color: #020617;
+  /* Slate-950 */
+  min-height: 100vh;
 }
 
-@keyframes pulse {
-    0% { transform: scale(0.5); opacity: 1; }
-    100% { transform: scale(1.5); opacity: 0; }
+/* Ensure the root div also allows growth */
+#root {
+  min-height: 100vh;
 }
 
-/* Force the GPU for the ETA label so it doesn't stutter */
-.custom-eta-pill {
-  transition: none !important; /* This stops the 'sliding' effect */
-    animation: none !important;
-}
-
-.custom-eta-pill > div {
-    transition: none !important;
-}
-
-.is-zooming .custom-eta-pill {
-    display: none !important;
-}
-
-/* Kill transitions during zooming to prevent "ghost" buses flying across the screen */
-.leaflet-zoom-anim .custom-bus-icon,
-.is-zooming .custom-bus-icon,
-.is-zooming .bus-arrow-needle,
-.is-zooming .custom-eta-pill {
-  transition: none !important;
-  visibility: hidden; /* Temporarily hide buses during zoom for a cleaner look */
-}
-
-/* --- SCROLLBAR & UI --- */
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: #0a0a0a;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #C05621;
-  border-radius: 10px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #e66a2e;
-}
-
-/* --- LEAFLET CLEANUP --- */
-
-.leaflet-popup-content-wrapper {
-  background: #ffffff !important;
-  color: #0a0a0a !important;
-  border-radius: 12px !important;
-  padding: 0px !important;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
+/* ==========================================================================
+   2. LEAFLET ENGINE FIXES (Crucial for Map Display)
+   ========================================================================== */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #0a0a0a !important;
+  /* Prevents "Gray Flash" before tiles load */
+  z-index: 1;
 }
 
 .no-transition {
@@ -78,16 +38,98 @@
   animation: none !important;
 }
 
-/* Make the road paths look "glowy" and modern */
-.leaflet-interactive {
-  filter: drop-shadow(0 0 2px rgba(59, 130, 246, 0.5));
+/* Kill transitions during zooming to prevent "ghost" buses flying across the screen */
+.leaflet-zoom-anim .custom-bus-icon,
+.is-zooming .custom-bus-icon,
+.is-zooming .custom-eta-pill {
+  transition: none !important;
+  visibility: hidden;
+}
+
+/* ==========================================================================
+   3. BUS MARKERS & ANIMATIONS
+   ========================================================================== */
+.custom-bus-icon {
+  transition: transform 1000ms linear;
+  /* Smooth GPS rotation */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pulse-ring {
+  position: absolute;
+  width: 45px;
+  height: 45px;
+  border: 3px solid var(--brand-emerald);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
 }
 
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-4px);
+  }
+
+  75% {
+    transform: translateX(4px);
+  }
 }
+
 .animate-shake {
   animation: shake 0.2s ease-in-out 0s 2;
+}
+
+/* ==========================================================================
+   4. OPERATOR DASHBOARD SPECIFIC (The Pro View)
+   ========================================================================== */
+/* Make the road paths look "glowy" for the Operator Console */
+.operator-map-glow .leaflet-interactive {
+  filter: drop-shadow(0 0 4px rgba(249, 115, 22, 0.4));
+}
+
+.operator-icon {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   5. UI COMPONENTS (Scrollbars & Popups)
+   ========================================================================== */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--brand-orange);
+  border-radius: 10px;
+}
+
+.leaflet-popup-content-wrapper {
+  background: #18181b !important;
+  /* Zinc-900 for dark mode popups */
+  color: #f4f4f5 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5) !important;
 }
